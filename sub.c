@@ -1,87 +1,113 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 
-#define MAX_STACK_SIZE 100
+#define MAX_SIZE 100
 
 typedef struct {
-    int data[MAX_STACK_SIZE];
+    char items[MAX_SIZE];
     int top;
 } Stack;
 
-void initialize(Stack *stack) {
-    stack->top = -1;
+void initialize(Stack *s) {
+    s->top = -1;
 }
 
-int isEmpty(Stack *stack) {
-    return stack->top == -1;
+int isEmpty(Stack *s) {
+    return s->top == -1;
 }
 
-int isFull(Stack *stack) {
-    return stack->top == MAX_STACK_SIZE - 1;
+void push(Stack *s, char c) {
+    if (s->top == MAX_SIZE - 1) {
+        printf("Stack overflow!\n");
+        exit(EXIT_FAILURE);
+    }
+    s->items[++s->top] = c;
 }
 
-void push(Stack *stack, int value) {
-    if (!isFull(stack)) {
-        stack->data[++stack->top] = value;
-    } else {
-        printf("Stack is full. Cannot push.\n");
+char pop(Stack *s) {
+    if (isEmpty(s)) {
+        printf("Stack underflow!\n");
+        exit(EXIT_FAILURE);
+    }
+    return s->items[s->top--];
+}
+
+int precedence(char op) {
+    switch (op) {
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+            return 2;
+        case '^':
+            return 3;
+        default:
+            return -1;
     }
 }
 
-int pop(Stack *stack) {
-    if (!isEmpty(stack)) {
-        return stack->data[stack->top--];
-    } else {
-        printf("Stack is empty. Cannot pop.\n");
-        return -1; // Return a special value to indicate an error
-    }
+int isOperator(char c) {
+    return (c == '+' || c == '-' || c == '*' || c == '/' || c == '^');
 }
 
-int evaluatePostfix(char *expression) {
-    Stack stack;
-    initialize(&stack);
+void infixToPrefix(char *infix, char *prefix) {
+    Stack operatorStack;
+    initialize(&operatorStack);
+    int i, j;
+    j = 0;
 
-    for (int i = 0; expression[i] != '\0'; i++) {
-        if (isdigit(expression[i])) {
-            push(&stack, expression[i] - '0'); // Convert char to int
-        } else {
-            int operand2 = pop(&stack);
-            int operand1 = pop(&stack);
+    for (i = strlen(infix) - 1; i >= 0; i--) {
+        char c = infix[i];
 
-            switch (expression[i]) {
-                case '+':
-                    push(&stack, operand1 + operand2);
-                    break;
-                case '-':
-                    push(&stack, operand1 - operand2);
-                    break;
-                case '*':
-                    push(&stack, operand1 * operand2);
-                    break;
-                case '/':
-                    push(&stack, operand1 / operand2);
-                    break;
-                default:
-                    printf("Invalid operator: %c\n", expression[i]);
-                    return -1; // Return an error code
+        if (isalnum(c)) {
+            prefix[j++] = c;
+        } else if (c == ')') {
+            push(&operatorStack, c);
+        } else if (c == '(') {
+            while (!isEmpty(&operatorStack) && operatorStack.items[operatorStack.top] != ')') {
+                prefix[j++] = pop(&operatorStack);
             }
+            if (!isEmpty(&operatorStack))
+                pop(&operatorStack); // Pop '('
+        } else if (isOperator(c)) {
+            while (!isEmpty(&operatorStack) && precedence(operatorStack.items[operatorStack.top]) > precedence(c)) {
+                prefix[j++] = pop(&operatorStack);
+            }
+            push(&operatorStack, c);
         }
     }
 
-    return pop(&stack);
+    while (!isEmpty(&operatorStack)) {
+        prefix[j++] = pop(&operatorStack);
+    }
+
+    prefix[j] = '\0';
+
+    // Reverse the prefix expression
+    int len = strlen(prefix);
+    for (i = 0; i < len / 2; i++) {
+        char temp = prefix[i];
+        prefix[i] = prefix[len - i - 1];
+        prefix[len - i - 1] = temp;
+    }
 }
 
 int main() {
-    char postfixExpression[100];
-    printf("Enter a postfix expression: ");
-    scanf("%s", postfixExpression);
+    char infix[MAX_SIZE], prefix[MAX_SIZE];
 
-    int result = evaluatePostfix(postfixExpression);
-    if (result != -1) {
-        printf("Result: %d\n", result);
-    }
+    printf("Enter infix expression: ");
+    fgets(infix, MAX_SIZE, stdin);
 
+    // Remove trailing newline if any
+    if (infix[strlen(infix) - 1] == '\n')
+        infix[strlen(infix) - 1] = '\0';
+
+    infixToPrefix(infix, prefix);
+    printf("Prefix expression: %s\n", prefix);
     return 0;
-}
 
+
+}
